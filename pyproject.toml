@@ -1,7 +1,7 @@
 [project]
 name = "canvas-module-downloader"
 version = "0.1.0"
-description = "Add your description here"
+description = "Download a Canvas LMS course's modules and convert Pages to Obsidian-flavored Markdown"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
