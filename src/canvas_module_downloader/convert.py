@@ -66,6 +66,22 @@ def page_html_to_markdown(
     soup = BeautifulSoup(html or "", "html.parser")
     base_netloc = urlparse(base_url).netloc
 
+    for iframe in soup.find_all("iframe", src=True):
+        link = soup.new_tag("a", href=iframe["src"])
+        link.string = iframe.get("title") or "Video"
+        iframe.replace_with(link)
+
+    for video in soup.find_all("video"):
+        src = video.get("src")
+        if not src:
+            source = video.find("source", src=True)
+            src = source["src"] if source else None
+        if not src:
+            continue
+        link = soup.new_tag("a", href=src)
+        link.string = video.get("title") or "Video"
+        video.replace_with(link)
+
     for img in soup.find_all("img"):
         src = img.get("src")
         if not src:

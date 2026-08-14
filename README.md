@@ -64,5 +64,10 @@ tags:
 Point `--output` at a folder inside your Obsidian vault (or move the output there
 afterwards) and the wikilinks/tags will resolve as normal vault notes.
 
-Module items of type Assignment, Quiz, Discussion, and ExternalTool are not
-downloaded — they're printed to the console as skipped so you know what was left out.
+Module items of type Assignment, Quiz, and Discussion are not downloaded —
+they're printed to the console as skipped so you know what was left out.
+ExternalTool items (e.g. a Panopto/Studio video added directly as a module
+item) are listed in `external_links.md` alongside ExternalUrl items. Videos
+embedded inside a Page (`<iframe>`/`<video>`) are converted to plain markdown
+links; Canvas-hosted video files are downloaded and embedded like any other
+attachment.

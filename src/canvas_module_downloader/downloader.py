@@ -5,7 +5,7 @@ from canvas_module_downloader.assets import download_asset
 from canvas_module_downloader.config import Config
 from canvas_module_downloader.convert import page_html_to_markdown
 from canvas_module_downloader.prompt import select_modules
-from canvas_module_downloader.utils import frontmatter, slugify
+from canvas_module_downloader.utils import frontmatter, safe_filename, slugify
 
 
 def run(config: Config) -> None:
@@ -36,8 +36,25 @@ def run(config: Config) -> None:
         )
         external_links: list[tuple[str, str]] = []
 
+        page_stems = [
+            safe_filename(item.get("title", "untitled"))
+            for item in items
+            if item.get("type") == "Page"
+        ]
+        nav_by_item_id = {}
+        page_index = 0
         for item in items:
-            _handle_item(item, client, config, module_dir, download_cache, external_links, tags)
+            if item.get("type") != "Page":
+                continue
+            prev_stem = page_stems[page_index - 1] if page_index > 0 else None
+            next_stem = page_stems[page_index + 1] if page_index + 1 < len(page_stems) else None
+            nav_by_item_id[item["id"]] = _nav_line(prev_stem, next_stem)
+            page_index += 1
+
+        for item in items:
+            _handle_item(
+                item, client, config, module_dir, download_cache, external_links, tags, nav_by_item_id
+            )
 
         if external_links:
             lines = "\n".join(f"- [{title}]({url})" for title, url in external_links)
@@ -45,6 +62,15 @@ def run(config: Config) -> None:
             (module_dir / "external_links.md").write_text(content)
 
     print(f"Done. Output written to {config.output_dir}")
+
+
+def _nav_line(prev_stem: str | None, next_stem: str | None) -> str | None:
+    parts = []
+    if prev_stem:
+        parts.append(f"[[{prev_stem}|← Prev]]")
+    if next_stem:
+        parts.append(f"[[{next_stem}|Next →]]")
+    return " · ".join(parts) if parts else None
 
 
 def _handle_item(
@@ -55,9 +81,9 @@ def _handle_item(
     download_cache: dict[str, Path],
     external_links: list[tuple[str, str]],
     tags: list[str],
+    nav_by_item_id: dict,
 ) -> None:
     item_type = item.get("type")
-    position = item.get("position") or 0
     title = item.get("title", "untitled")
 
     if item_type == "Page":
@@ -70,8 +96,15 @@ def _handle_item(
             module_dir / "files",
             download_cache,
         )
-        filename = f"{position:02d}_{slugify(title)}.md"
-        content = frontmatter(tags) + f"# {title}\n\n{markdown}"
+        filename = f"{safe_filename(title)}.md"
+        nav = nav_by_item_id.get(item["id"])
+        body = f"# {title}\n\n"
+        if nav:
+            body += f"{nav}\n\n"
+        body += markdown
+        if nav:
+            body += f"\n{nav}\n"
+        content = frontmatter(tags) + body
         (module_dir / filename).write_text(content)
         print(f"  page: {title}")
 
@@ -85,7 +118,7 @@ def _handle_item(
         )
         print(f"  file: {local_path.name if local_path else title + ' (failed)'}")
 
-    elif item_type == "ExternalUrl":
+    elif item_type in ("ExternalUrl", "ExternalTool"):
         external_links.append((title, item.get("external_url", "")))
 
     elif item_type == "SubHeader":
